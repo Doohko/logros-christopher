@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christopher's Quest Log - Steam Edition (Sincronizado)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0b0e14;
+            --card-bg: #161b22;
+            --panel-bg: #1f242d;
+            --accent-blue: #00fff0;
+            --accent-green: #00ff66;
+            --accent-purple: #a855f7;
+            --accent-gold: #ffd700;
+            --accent-red: #ff4d4d;
+            --text-main: #f3f4f6;
+            --text-dim: #9ca3af;
+            --steam-glow: 0 0 15px rgba(0, 255, 240, 0.3);
+            --completed-glow: 0 0 15px rgba(0, 255, 102, 0.4);
+            --gold-glow: 0 0 15px rgba(255, 215, 0, 0.4);
+            --red-glow: 0 0 15px rgba(255, 77, 77, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1250px;
+            margin: 0 auto;
+        }
+
+        /* HEADER & HUD */
+        header {
+            background: linear-gradient(135deg, #1b222d 0%, #0d1117 100%);
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            background: linear-gradient(45deg, var(--accent-purple), var(--accent-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: var(--steam-glow);
+        }
+
+        .user-info h1 {
+            font-size: 1.6rem;
+            letter-spacing: 1px;
+            color: #fff;
+        }
+
+        .user-info .level-badge {
+            display: inline-block;
+            background: rgba(0, 255, 240, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid var(--accent-blue);
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .xp-container {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .xp-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .xp-bar-bg {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            height: 22px;
+            border-radius: 11px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+            transition: width 0.5s ease;
+            box-shadow: var(--steam-glow);
+        }
+
+        /* TABS / CATEGORIAS */
+        .categories {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+        }
+
+        .tab-btn {
+            background: var(--panel-bg);
+            border: 1px solid #30363d;
+            color: var(--text-dim);
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover, .tab-btn.active {
+            color: #fff;
+            border-color: var(--accent-blue);
+            background: #252d3a;
+            box-shadow: var(--steam-glow);
+        }
+
+        /* MAIN GRID & LAYOUT */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 950px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-add {
+            background: var(--accent-purple);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-add:hover {
+            transform: scale(1.05);
+        }
+
+        /* TARJETAS DE LOGRO Y ANTI-LOGRO */
+        .achievements-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid #21262d;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card.anti-achievement {
+            border-color: rgba(255, 77, 77, 0.4);
+            background: linear-gradient(135deg, #161b22 0%, #2a1114 100%);
+        }
+
+        .card-main-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card.completed-expert {
+            border-color: var(--accent-gold);
+            background: linear-gradient(135deg, #161b22 0%, #292109 100%);
+            box-shadow: var(--gold-glow);
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            background: var(--panel-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .anti-achievement .card-icon {
+            border-color: var(--accent-red);
+        }
+
+        .card-info {
+            flex: 1;
+        }
+
+        .card-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .tier-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tier-1 { background: rgba(0, 255, 240, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
+        .tier-2 { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); border: 1px solid var(--accent-purple); }
+        .tier-3 { background: rgba(255, 215, 0, 0.2); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
+        .tier-anti { background: rgba(255, 77, 77, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            line-height: 1.3;
+        }
+
+        .card-xp {
+            background: rgba(0, 255, 240, 0.1);
+            color: var(--accent-blue);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .anti-achievement .card-xp {
+            background: rgba(255, 77, 77, 0.15);
+            color: var(--accent-red);
+        }
+
+        .card-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-edit {
+            background: var(--panel-bg);
+            border: 1px solid #30363d;
+            color: var(--text-dim);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .btn-edit:hover {
+            color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-increment {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-increment:hover {
+            background: var(--accent-green);
+            color: #000;
+        }
+
+        .btn-increment-anti {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .btn-increment-anti:hover {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        /* BARRA DE PROGRESO DE LOGRO */
+        .tier-progress-container {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #2d3748;
+        }
+
+        .tier-progress-bar-bg {
+            flex: 1;
+            height: 10px;
+            background: #0d1117;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .tier-progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+            transition: width 0.3s ease;
+        }
+
+        .tier-progress-text {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        /* SIDEBAR PANELS */
+        .sidebar-panel {
+            background: var(--card-bg);
+            border: 1px solid #21262d;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .reward-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .reward-item:last-child {
+            border-bottom: none;
+        }
+
+        .reward-info h4 { font-size: 0.9rem; }
+        .reward-info p { font-size: 0.75rem; color: var(--text-dim); }
+
+        .reward-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .unlocked-text { color: var(--accent-green); }
+        .locked-text { color: var(--text-dim); }
+
+        /* CALENDARIO MENSUAL */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .calendar-nav-btn {
+            background: var(--panel-bg);
+            border: 1px solid #30363d;
+            color: var(--text-main);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            text-align: center;
+        }
+
+        .cal-day-header {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: var(--text-dim);
+            padding-bottom: 4px;
+        }
+
+        .cal-day-cell {
+            background: var(--panel-bg);
+            border-radius: 6px;
+            min-height: 48px;
+            padding: 4px 2px;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cal-day-cell:hover { border-color: var(--accent-blue); }
+        .cal-day-cell.empty { background: transparent; cursor: default; border: none; }
+        .cal-day-cell.karate { border-color: var(--accent-purple); background: rgba(168, 85, 247, 0.08); }
+        .cal-day-num { font-weight: bold; }
+        .cal-day-icons { display: flex; gap: 2px; font-size: 0.65rem; flex-wrap: wrap; justify-content: center; }
+        .karate-badge { color: var(--accent-purple); }
+        .completed-dot { width: 6px; height: 6px; background-color: var(--accent-green); border-radius: 50%; box-shadow: 0 0 5px var(--accent-green); }
+        .penalty-dot { width: 6px; height: 6px; background-color: var(--accent-red); border-radius: 50%; box-shadow: 0 0 5px var(--accent-red); }
+
+        /* MODALES */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--accent-blue);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            padding: 20px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-header h3 { color: var(--accent-blue); }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.85rem; margin-bottom: 5px; color: var(--text-dim); }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--panel-bg);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #fff;
+            outline: none;
+        }
+
+        .tier-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .modal-buttons { display: flex; gap: 10px; }
+        .btn-submit { flex: 1; background: var(--accent-blue); color: #000; font-weight: bold; padding: 10px; border: none; border-radius: 6px; cursor: pointer; }
+        .btn-delete { background: rgba(255, 77, 77, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; }
+        .btn-delete:hover { background: var(--accent-red); color: #fff; }
+
+        .checkbox-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; cursor: pointer; }
+
+        .history-list { list-style: none; margin-top: 10px; }
+        .history-list li { padding: 8px; background: var(--panel-bg); border-radius: 6px; margin-bottom: 6px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="user-profile">
+            <div class="avatar">🎮</div>
+            <div class="user-info">
+                <h1 id="user-name">Christopher</h1>
+                <div class="level-badge" id="level-title">Sincronizando...</div>
+            </div>
+        </div>
+        <div class="xp-container">
+            <div class="xp-header">
+                <span>Progreso de Nivel</span>
+                <span id="xp-text">... XP</span>
+            </div>
+            <div class="xp-bar-bg">
+                <div class="xp-bar-fill" id="xp-fill"></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="categories">
+        <button class="tab-btn active" onclick="filterCategory('all', this)"><i class="fas fa-border-all"></i> Todos</button>
+        <button class="tab-btn" onclick="filterCategory('exploracion', this)"><i class="fas fa-compass"></i> 🗺️ Exploración</button>
+        <button class="tab-btn" onclick="filterCategory('habitat', this)"><i class="fas fa-shield-alt"></i> 🛡️ Hábitat</button>
+        <button class="tab-btn" onclick="filterCategory('guerrero', this)"><i class="fas fa-user-ninja"></i> 🥋 El Guerrero</button>
+        <button class="tab-btn" onclick="filterCategory('digital', this)"><i class="fas fa-brain"></i> ⚖️ Autorregulación</button>
+        <button class="tab-btn" onclick="filterCategory('custom', this)"><i class="fas fa-star"></i> 🎯 Ocultos / Míos</button>
+    </div>
+
+    <div class="dashboard-grid">
+        <main>
+            <div class="section-header">
+                <div class="section-title"><i class="fas fa-trophy" style="color: var(--accent-blue);"></i> Logros y Anti-Logros</div>
+                <button class="btn-add" onclick="openAddModal()"><i class="fas fa-plus"></i> + Crear Logro / Anti-Logro</button>
+            </div>
+
+            <div class="achievements-list" id="achievements-container">
+                </div>
+        </main>
+
+        <aside>
+            <div class="sidebar-panel">
+                <div class="section-header" style="margin-bottom: 10px;">
+                    <div class="section-title" style="font-size: 1rem;">
+                        <i class="fas fa-gift" style="color: var(--accent-purple);"></i> Árbol de Recompensas
+                    </div>
+                    <button class="btn-add" style="padding: 4px 8px; font-size: 0.75rem;" onclick="openRewardModal()"><i class="fas fa-plus"></i> + Nueva</button>
+                </div>
+                <div id="rewards-container">
+                    </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <div class="section-header" style="margin-bottom: 10px;">
+                    <div class="section-title" style="font-size: 1rem;">
+                        <i class="fas fa-calendar-alt" style="color: var(--accent-green);"></i> Historial Mensual
+                    </div>
+                    <button class="btn-edit" style="width: auto; height: auto; padding: 4px 8px; font-size: 0.75rem;" onclick="openRoutineModal()" title="Configurar Días de Karate">
+                        <i class="fas fa-cog"></i> Config. Rutinas
+                    </button>
+                </div>
+                
+                <div class="calendar-header">
+                    <button class="calendar-nav-btn" onclick="changeMonth(-1)">&lt;</button>
+                    <span id="calendar-month-year" style="font-weight: bold; font-size: 0.9rem;"></span>
+                    <button class="calendar-nav-btn" onclick="changeMonth(1)">&gt;</button>
+                </div>
+
+                <div class="calendar-grid" id="calendar-grid">
+                    </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<div class="modal" id="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">🎯 Configurar Logro</h3>
+            <span style="cursor:pointer;" onclick="closeModal('custom-modal')">&times;</span>
+        </div>
+        <form id="achievement-form" onsubmit="saveAchievement(event)">
+            <div class="form-group">
+                <label>Tipo de Registro:</label>
+                <select id="is-anti" onchange="toggleAntiFields()">
+                    <option value="false">🏆 Logro Positivo (Suma XP por Nivel)</option>
+                    <option value="true">⚠️ Anti-Logro (Resta XP por penalización)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Título:</label>
+                <input type="text" id="new-title" placeholder="Ej: Trasnochar sin acuerdo" required>
+            </div>
+            <div class="form-group">
+                <label>Descripción / Condición:</label>
+                <textarea id="new-desc" rows="2" placeholder="Irse a dormir fuera del horario sin previa autorización" required></textarea>
+            </div>
+
+            <div id="regular-fields">
+                <div class="form-group">
+                    <label>Recompensas en XP por cada Nivel:</label>
+                    <div class="tier-inputs">
+                        <div>
+                            <label style="font-size: 0.75rem;">Nivel 1 XP</label>
+                            <input type="number" id="xp-tier-1" value="20">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem;">Nivel 2 XP</label>
+                            <input type="number" id="xp-tier-2" value="40">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem;">Experto XP</label>
+                            <input type="number" id="xp-tier-3" value="80">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Meta de Repeticiones por Nivel:</label>
+                    <div class="tier-inputs">
+                        <div>
+                            <label style="font-size: 0.75rem;">Completar Nivel 1</label>
+                            <input type="number" id="target-tier-1" value="1" min="1">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem;">Completar Nivel 2</label>
+                            <input type="number" id="target-tier-2" value="3" min="2">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem;">Completar Experto</label>
+                            <input type="number" id="target-tier-3" value="5" min="3">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="anti-fields" style="display: none;">
+                <div class="form-group">
+                    <label>Penalización de XP a restar por cada vez:</label>
+                    <input type="number" id="anti-xp" value="25" min="1" max="500">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Contador Actual de Veces Registradas:</label>
+                <input type="number" id="current-count" value="0" min="0" required>
+            </div>
+
+            <div class="form-group">
+                <label>Categoría:</label>
+                <select id="new-category">
+                    <option value="digital">⚖️ Autorregulación Digital</option>
+                    <option value="exploracion">🗺️ Exploración</option>
+                    <option value="habitat">🛡️ Hábitat</option>
+                    <option value="guerrero">🥋 El Guerrero</option>
+                    <option value="custom">🎯 Personalizado / Oculto</option>
+                </select>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="btn-delete" id="btn-delete" onclick="deleteCurrentAchievement()"><i class="fas fa-trash"></i> Eliminar</button>
+                <button type="submit" class="btn-submit" id="btn-submit">Guardar Configuración</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="reward-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="reward-modal-title">🎁 Recompensa</h3>
+            <span style="cursor:pointer;" onclick="closeModal('reward-modal')">&times;</span>
+        </div>
+        <form id="reward-form" onsubmit="saveReward(event)">
+            <div class="form-group">
+                <label>Título de la Recompensa:</label>
+                <input type="text" id="reward-title" placeholder="Ej: +30 Min de Pantalla Libre" required>
+            </div>
+            <div class="form-group">
+                <label>Puntos de XP Necesarios:</label>
+                <input type="number" id="reward-xp" value="50" min="10" max="2000" required>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-delete" id="btn-reward-delete" onclick="deleteCurrentReward()"><i class="fas fa-trash"></i> Eliminar</button>
+                <button type="submit" class="btn-submit">Guardar Recompensa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="routine-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🥋 Días Recurrentes de Karate</h3>
+            <span style="cursor:pointer;" onclick="closeModal('routine-modal')">&times;</span>
+        </div>
+        <div class="form-group">
+            <label>Selecciona los días de la semana con entrenamiento:</label>
+            <div class="checkbox-group" id="karate-days-group">
+                <label><input type="checkbox" value="1"> Lun</label>
+                <label><input type="checkbox" value="2"> Mar</label>
+                <label><input type="checkbox" value="3"> Mié</label>
+                <label><input type="checkbox" value="4"> Jue</label>
+                <label><input type="checkbox" value="5"> Vie</label>
+                <label><input type="checkbox" value="6"> Sáb</label>
+                <label><input type="checkbox" value="0"> Dom</label>
+            </div>
+        </div>
+        <button class="btn-submit" onclick="saveKarateDays()">Guardar Configuración</button>
+    </div>
+</div>
+
+<div class="modal" id="day-detail-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="day-modal-title">📅 Detalle del Día</h3>
+            <span style="cursor:pointer;" onclick="closeModal('day-detail-modal')">&times;</span>
+        </div>
+        <div id="day-modal-content"></div>
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    // CONFIGURACIÓN DE FIREBASE (¡REEMPLAZAR AQUÍ!)
+    // =========================================================================
+    const firebaseConfig = {
+        apiKey: "TU_API_KEY",
+        authDomain: "TU_PROYECTO.firebaseapp.com",
+        projectId: "TU_PROYECTO",
+        storageBucket: "TU_PROYECTO.appspot.com",
+        messagingSenderId: "TU_SENDER_ID",
+        appId: "TU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // Referencia al documento de tu hijo en la nube
+    const docRef = db.collection("dashboard").doc("christopher");
+    // =========================================================================
+
+    // DATOS INICIALES POR DEFECTO
+    const initialAchievements = [
+        { id: 1, title: "Comprador Solitario", desc: "Ir a comprar de forma autónoma una lista de compras.", cat: "exploracion", icon: "🛒", count: 0, targets: [1, 3, 5], xpRewards: [30, 60, 120], isAnti: false },
+        { id: 2, title: "Dominio de la Fortaleza", desc: "Mantener la habitación ordenada cumpliendo las metas semanales.", cat: "habitat", icon: "🛏️", count: 0, targets: [2, 5, 10], xpRewards: [20, 50, 100], isAnti: false },
+        { id: 3, title: "Espíritu de Karateka", desc: "Asistir y dar el máximo en las sesiones de Karate.", cat: "guerrero", icon: "🥋", count: 0, targets: [1, 4, 8], xpRewards: [35, 70, 150], isAnti: false },
+        { id: 4, title: "Desconexión Consciente", desc: "Apagar pantallas a la hora acordada en la noche.", cat: "digital", icon: "🌙", count: 0, targets: [1, 3, 7], xpRewards: [25, 50, 100], isAnti: false },
+        { id: 10, title: "Trasnocho Desmedido", desc: "Ignorar el horario de descanso de forma no acordada.", cat: "digital", icon: "🚨", count: 0, antiXp: 25, isAnti: true }
+    ];
+
+    const initialRewards = [
+        { id: 101, title: "+30 Min de Pantalla Libre", xpNeeded: 50 },
+        { id: 102, title: "Flexibilización de Bloqueo Parental", xpNeeded: 120 },
+        { id: 103, title: "Elección de Actividad de Fin de Semana", xpNeeded: 220 },
+        { id: 104, title: "Retiro Total de Bloqueos en App Seleccionada", xpNeeded: 350 }
+    ];
+
+    const levelTitles = [
+        "Nivel 1: Explorador Inicial",
+        "Nivel 2: Guardián de Rutinas",
+        "Nivel 3: Guerrero Autónomo",
+        "Nivel 4: Maestro de la Autorregulación",
+        "Nivel 5: Legendario Autónomo"
+    ];
+
+    let achievements = [];
+    let rewards = [];
+    let completionHistory = {}; 
+    let karateDays = [2, 4];
+    
+    let currentCategory = 'all';
+    let editingAchievementId = null;
+    let editingRewardId = null;
+    let currentDateView = new Date();
+
+    function getCategoryIcon(cat) {
+        switch(cat) {
+            case 'exploracion': return '🗺️';
+            case 'habitat': return '🛡️';
+            case 'guerrero': return '🥋';
+            case 'digital': return '⚖️';
+            default: return '🎯';
+        }
+    }
+
+    function getTodayKey() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // =========================================================================
+    // NUEVA LÓGICA DE SINCRONIZACIÓN FIREBASE
+    // =========================================================================
+    function loadData() {
+        // onSnapshot escucha cambios en tiempo real
+        docRef.onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                achievements = data.achievements || initialAchievements;
+                rewards = data.rewards || initialRewards;
+                completionHistory = data.history || {};
+                karateDays = data.karateDays || [2, 4];
+            } else {
+                // Si es la primera vez que se abre la página, inicializa la base de datos
+                achievements = initialAchievements;
+                rewards = initialRewards;
+                completionHistory = {};
+                karateDays = [2, 4];
+                saveData(); // Crea el documento en Firebase
+            }
+            render();
+        }, (error) => {
+            console.error("Error conectando a Firebase:", error);
+            document.getElementById('level-title').innerText = "Modo Local (Error de conexión)";
+            // Fallback a localStorage por seguridad si no hay internet temporalmente
+            const savedAchievements = localStorage.getItem('christopher_anti_quest');
+            if (savedAchievements) {
+                achievements = JSON.parse(savedAchievements);
+                rewards = JSON.parse(localStorage.getItem('christopher_rewards'));
+                completionHistory = JSON.parse(localStorage.getItem('christopher_history'));
+                karateDays = JSON.parse(localStorage.getItem('christopher_karate_days'));
+                render();
+            }
+        });
+    }
+
+    function saveData() {
+        // Guarda en Firebase en lugar de solo en localStorage
+        docRef.set({
+            achievements: achievements,
+            rewards: rewards,
+            history: completionHistory,
+            karateDays: karateDays
+        }, { merge: true }).catch(error => {
+            console.error("Error guardando en Firebase:", error);
+        });
+
+        // Guardamos también en local por precaución
+        localStorage.setItem('christopher_anti_quest', JSON.stringify(achievements));
+        localStorage.setItem('christopher_rewards', JSON.stringify(rewards));
+        localStorage.setItem('christopher_history', JSON.stringify(completionHistory));
+        localStorage.setItem('christopher_karate_days', JSON.stringify(karateDays));
+    }
+    // =========================================================================
+
+    function getAchievementTierInfo(item) {
+        if (item.isAnti) {
+            return {
+                earnedXP: -(item.count * item.antiXp)
+            };
+        }
+
+        const count = item.count || 0;
+        const [t1, t2, t3] = item.targets || [1, 3, 5];
+        const [xp1, xp2, xp3] = item.xpRewards || [20, 40, 80];
+
+        let currentTier = "Nivel 1";
+        let tierClass = "tier-1";
+        let targetXP = xp1;
+        let nextTarget = t1;
+        let prevTarget = 0;
+        let isMax = false;
+
+        if (count >= t3) {
+            currentTier = "Experto";
+            tierClass = "tier-3";
+            targetXP = xp1 + xp2 + xp3;
+            nextTarget = t3;
+            prevTarget = t3;
+            isMax = true;
+        } else if (count >= t2) {
+            currentTier = "Nivel 2";
+            tierClass = "tier-2";
+            targetXP = xp2;
+            nextTarget = t3;
+            prevTarget = t2;
+        } else if (count >= t1) {
+            currentTier = "Nivel 2";
+            tierClass = "tier-2";
+            targetXP = xp2;
+            nextTarget = t2;
+            prevTarget = t1;
+        }
+
+        let earnedXP = 0;
+        if (count >= t1) earnedXP += xp1;
+        if (count >= t2) earnedXP += xp2;
+        if (count >= t3) earnedXP += xp3;
+
+        return { currentTier, tierClass, targetXP, nextTarget, prevTarget, earnedXP, isMax };
+    }
+
+    function calculateXP() {
+        let totalXP = 0;
+        achievements.forEach(item => {
+            const info = getAchievementTierInfo(item);
+            totalXP += info.earnedXP;
+        });
+
+        // La XP no puede ser negativa en total
+        totalXP = Math.max(0, totalXP);
+
+        let currentLevelIndex = 0;
+        if (totalXP >= 350) currentLevelIndex = 4;
+        else if (totalXP >= 220) currentLevelIndex = 3;
+        else if (totalXP >= 120) currentLevelIndex = 2;
+        else if (totalXP >= 50) currentLevelIndex = 1;
+
+        const nextXPGoals = [50, 120, 220, 350, 500];
+        const goalXP = nextXPGoals[currentLevelIndex] || 500;
+
+        return { totalXP, levelTitle: levelTitles[currentLevelIndex], goalXP };
+    }
+
+    // RENDERIZAR DASHBOARD
+    function render() {
+        const { totalXP, levelTitle, goalXP } = calculateXP();
+
+        // Header
+        document.getElementById('level-title').innerText = levelTitle;
+        document.getElementById('xp-text').innerText = `${totalXP} / ${goalXP} XP`;
+        const percentage = Math.min(100, (totalXP / goalXP) * 100);
+        document.getElementById('xp-fill').style.width = `${percentage}%`;
+
+        // Logros
+        const container = document.getElementById('achievements-container');
+        container.innerHTML = '';
+
+        const filtered = achievements.filter(a => currentCategory === 'all' || a.cat === currentCategory);
+
+        filtered.forEach(item => {
+            const card = document.createElement('div');
+            
+            if (item.isAnti) {
+                card.className = "card anti-achievement";
+                const totalLoss = item.count * item.antiXp;
+
+                card.innerHTML = `
+                    <div class="card-main-content">
+                        <div class="card-icon">${item.icon || '🚨'}</div>
+                        <div class="card-info">
+                            <div class="card-title-row">
+                                <span class="card-title">${item.title}</span>
+                                <span class="tier-badge tier-anti">Anti-Logro</span>
+                            </div>
+                            <div class="card-desc">${item.desc}</div>
+                        </div>
+                        <div class="card-xp">-${item.antiXp} XP por vez</div>
+                        <div class="card-controls">
+                            <button class="btn-increment btn-increment-anti" onclick="incrementCount(${item.id})">
+                                <i class="fas fa-plus"></i> +1 Ocurrencia
+                            </button>
+                            <button class="btn-edit" title="Editar Anti-Logro" onclick="openEditModal(${item.id})">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="tier-progress-container" style="border-color: rgba(255, 77, 77, 0.3);">
+                        <div class="tier-progress-text" style="color: var(--accent-red);">
+                            ⚠️ Registrado ${item.count} vez/veces (Pérdida acumulada: -${totalLoss} XP)
+                        </div>
+                    </div>
+                `;
+            } else {
+                const tierInfo = getAchievementTierInfo(item);
+                card.className = `card ${tierInfo.isMax ? 'completed-expert' : ''}`;
+
+                let progressPercent = 100;
+                if (!tierInfo.isMax) {
+                    const range = tierInfo.nextTarget - tierInfo.prevTarget;
+                    const currentProgress = item.count - tierInfo.prevTarget;
+                    progressPercent = Math.min(100, Math.max(0, (currentProgress / range) * 100));
+                }
+
+                card.innerHTML = `
+                    <div class="card-main-content">
+                        <div class="card-icon">${item.icon || getCategoryIcon(item.cat)}</div>
+                        <div class="card-info">
+                            <div class="card-title-row">
+                                <span class="card-title">${item.title}</span>
+                                <span class="tier-badge ${tierInfo.tierClass}">${tierInfo.currentTier}</span>
+                            </div>
+                            <div class="card-desc">${item.desc}</div>
+                        </div>
+                        <div class="card-xp">+${tierInfo.targetXP} XP</div>
+                        <div class="card-controls">
+                            <button class="btn-increment" onclick="incrementCount(${item.id})">
+                                <i class="fas fa-plus"></i> +1
+                            </button>
+                            <button class="btn-edit" title="Editar Logro" onclick="openEditModal(${item.id})">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tier-progress-container">
+                        <div class="tier-progress-bar-bg">
+                            <div class="tier-progress-bar-fill" style="width: ${progressPercent}%;"></div>
+                        </div>
+                        <div class="tier-progress-text">
+                            ${tierInfo.isMax ? '🏆 ¡Nivel Máximo Completado!' : `${item.count} / ${tierInfo.nextTarget} completados (Faltan ${tierInfo.nextTarget - item.count})`}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.appendChild(card);
+        });
+
+        // Recompensas
+        const rewardsContainer = document.getElementById('rewards-container');
+        rewardsContainer.innerHTML = '';
+        rewards.sort((a,b) => a.xpNeeded - b.xpNeeded);
+
+        rewards.forEach(reward => {
+            const isUnlocked = totalXP >= reward.xpNeeded;
+            const rewardEl = document.createElement('div');
+            rewardEl.className = 'reward-item';
+            rewardEl.innerHTML = `
+                <div class="reward-info">
+                    <h4>${reward.title}</h4>
+                    <p>Requiere ${reward.xpNeeded} XP</p>
+                </div>
+                <div class="reward-status ${isUnlocked ? 'unlocked-text' : 'locked-text'}">
+                    <span>${isUnlocked ? '<i class="fas fa-unlock"></i> Desbloqueado' : '<i class="fas fa-lock"></i> Bloqueado'}</span>
+                    <button class="btn-edit" style="width:24px; height:24px; font-size:0.7rem;" onclick="openRewardModal(${reward.id})">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                </div>
+            `;
+            rewardsContainer.appendChild(rewardEl);
+        });
+
+        renderCalendar();
+    }
+
+    function incrementCount(id) {
+        const today = getTodayKey();
+
+        achievements = achievements.map(item => {
+            if (item.id === id) {
+                const newCount = (item.count || 0) + 1;
+
+                if (!completionHistory[today]) completionHistory[today] = [];
+                completionHistory[today].push({ id: id, isAnti: item.isAnti });
+
+                return { ...item, count: newCount };
+            }
+            return item;
+        });
+
+        saveData(); // Al guardar, Firebase emitirá el cambio y actualizará
+    }
+
+    // CALENDARIO
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        grid.innerHTML = '';
+
+        const year = currentDateView.getFullYear();
+        const month = currentDateView.getMonth();
+
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        document.getElementById('calendar-month-year').innerText = `${monthNames[month]} ${year}`;
+
+        const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        daysOfWeek.forEach(d => {
+            const h = document.createElement('div');
+            h.className = 'cal-day-header';
+            h.innerText = d;
+            grid.appendChild(h);
+        });
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDayIndex; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'cal-day-cell empty';
+            grid.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const dateObj = new Date(year, month, day);
+            const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const dayOfWeek = dateObj.getDay();
+
+            const isKarate = karateDays.includes(dayOfWeek);
+            const dayEvents = completionHistory[dateKey] || [];
+
+            const cell = document.createElement('div');
+            cell.className = `cal-day-cell ${isKarate ? 'karate' : ''}`;
+            cell.onclick = () => openDayDetailModal(dateKey, isKarate, dayEvents);
+
+            let hasPositive = dayEvents.some(e => typeof e === 'object' ? !e.isAnti : true);
+            let hasPenalty = dayEvents.some(e => typeof e === 'object' ? e.isAnti : false);
+
+            let iconsHtml = '';
+            if (isKarate) iconsHtml += `<span class="karate-badge">🥋</span>`;
+            if (hasPositive) iconsHtml += `<span class="completed-dot"></span>`;
+            if (hasPenalty) iconsHtml += `<span class="penalty-dot"></span>`;
+
+            cell.innerHTML = `
+                <div class="cal-day-num">${day}</div>
+                <div class="cal-day-icons">${iconsHtml}</div>
+            `;
+            grid.appendChild(cell);
+        }
+    }
+
+    function changeMonth(delta) {
+        currentDateView.setMonth(currentDateView.getMonth() + delta);
+        renderCalendar();
+    }
+
+    function openDayDetailModal(dateKey, isKarate, dayEvents) {
+        document.getElementById('day-modal-title').innerText = `📅 Registro: ${dateKey}`;
+        const content = document.getElementById('day-modal-content');
+        
+        let html = '';
+        if (isKarate) {
+            html += `<p style="color: var(--accent-purple); font-weight: bold; margin-bottom: 10px;">🥋 Día programado de Karate</p>`;
+        }
+
+        if (dayEvents.length === 0) {
+            html += `<p style="color: var(--text-dim); font-size: 0.9rem;">No hay eventos registrados en esta fecha.</p>`;
+        } else {
+            html += `<p style="font-size: 0.85rem; color: var(--text-dim);">Eventos del día:</p><ul class="history-list">`;
+            dayEvents.forEach(e => {
+                const id = typeof e === 'object' ? e.id : e;
+                const ach = achievements.find(a => a.id === id);
+                if (ach) {
+                    if (ach.isAnti) {
+                        html += `<li style="border-left: 3px solid var(--accent-red);"><span>🚨</span> <strong>${ach.title}</strong> (-${ach.antiXp} XP)</li>`;
+                    } else {
+                        html += `<li style="border-left: 3px solid var(--accent-green);"><span>${ach.icon || '🎯'}</span> <strong>${ach.title}</strong> (+1 avance)</li>`;
+                    }
+                }
+            });
+            html += `</ul>`;
+        }
+
+        content.innerHTML = html;
+        document.getElementById('day-detail-modal').style.display = 'flex';
+    }
+
+    // MODAL FORM CONTROL
+    function toggleAntiFields() {
+        const isAnti = document.getElementById('is-anti').value === 'true';
+        document.getElementById('regular-fields').style.display = isAnti ? 'none' : 'block';
+        document.getElementById('anti-fields').style.display = isAnti ? 'block' : 'none';
+    }
+
+    function openAddModal() {
+        editingAchievementId = null;
+        document.getElementById('modal-title').innerText = '🎯 Crear Logro / Anti-Logro';
+        document.getElementById('btn-submit').innerText = 'Guardar';
+        document.getElementById('btn-delete').style.display = 'none';
+        document.getElementById('achievement-form').reset();
+        document.getElementById('is-anti').value = "false";
+        toggleAntiFields();
+        document.getElementById('custom-modal').style.display = 'flex';
+    }
+
+    function openEditModal(id) {
+        const item = achievements.find(a => a.id === id);
+        if (!item) return;
+
+        editingAchievementId = id;
+        document.getElementById('modal-title').innerText = item.isAnti ? '✏️ Editar Anti-Logro' : '✏️ Editar Logro Progresivo';
+        document.getElementById('btn-submit').innerText = 'Actualizar Cambios';
+        document.getElementById('btn-delete').style.display = 'inline-block';
+
+        document.getElementById('is-anti').value = item.isAnti ? "true" : "false";
+        toggleAntiFields();
+
+        document.getElementById('new-title').value = item.title;
+        document.getElementById('new-desc').value = item.desc;
+        document.getElementById('current-count').value = item.count || 0;
+        document.getElementById('new-category').value = item.cat;
+
+        if (item.isAnti) {
+            document.getElementById('anti-xp').value = item.antiXp || 25;
+        } else {
+            document.getElementById('xp-tier-1').value = item.xpRewards[0];
+            document.getElementById('xp-tier-2').value = item.xpRewards[1];
+            document.getElementById('xp-tier-3').value = item.xpRewards[2];
+            document.getElementById('target-tier-1').value = item.targets[0];
+            document.getElementById('target-tier-2').value = item.targets[1];
+            document.getElementById('target-tier-3').value = item.targets[2];
+        }
+
+        document.getElementById('custom-modal').style.display = 'flex';
+    }
+
+    function saveAchievement(e) {
+        e.preventDefault();
+        const isAnti = document.getElementById('is-anti').value === 'true';
+        const title = document.getElementById('new-title').value;
+        const desc = document.getElementById('new-desc').value;
+        const count = parseInt(document.getElementById('current-count').value);
+        const cat = document.getElementById('new-category').value;
+        const icon = isAnti ? '🚨' : getCategoryIcon(cat);
+
+        let data = { id: editingAchievementId || Date.now(), title, desc, cat, icon, count, isAnti };
+
+        if (isAnti) {
+            data.antiXp = parseInt(document.getElementById('anti-xp').value);
+        } else {
+            data.xpRewards = [
+                parseInt(document.getElementById('xp-tier-1').value),
+                parseInt(document.getElementById('xp-tier-2').value),
+                parseInt(document.getElementById('xp-tier-3').value)
+            ];
+            data.targets = [
+                parseInt(document.getElementById('target-tier-1').value),
+                parseInt(document.getElementById('target-tier-2').value),
+                parseInt(document.getElementById('target-tier-3').value)
+            ];
+        }
+
+        if (editingAchievementId !== null) {
+            achievements = achievements.map(item => item.id === editingAchievementId ? data : item);
+        } else {
+            achievements.push(data);
+        }
+
+        saveData();
+        closeModal('custom-modal');
+    }
+
+    function deleteCurrentAchievement() {
+        if (editingAchievementId !== null && confirm('¿Deseas eliminar este elemento?')) {
+            achievements = achievements.filter(a => a.id !== editingAchievementId);
+            saveData();
+            closeModal('custom-modal');
+        }
+    }
+
+    // RECOMPENSAS
+    function openRewardModal(id = null) {
+        editingRewardId = id;
+        if (id) {
+            const r = rewards.find(item => item.id === id);
+            document.getElementById('reward-modal-title').innerText = '✏️ Editar Recompensa';
+            document.getElementById('reward-title').value = r.title;
+            document.getElementById('reward-xp').value = r.xpNeeded;
+            document.getElementById('btn-reward-delete').style.display = 'inline-block';
+        } else {
+            document.getElementById('reward-modal-title').innerText = '🎁 Nueva Recompensa';
+            document.getElementById('reward-form').reset();
+            document.getElementById('btn-reward-delete').style.display = 'none';
+        }
+        document.getElementById('reward-modal').style.display = 'flex';
+    }
+
+    function saveReward(e) {
+        e.preventDefault();
+        const title = document.getElementById('reward-title').value;
+        const xpNeeded = parseInt(document.getElementById('reward-xp').value);
+
+        if (editingRewardId) {
+            rewards = rewards.map(r => r.id === editingRewardId ? { ...r, title, xpNeeded } : r);
+        } else {
+            rewards.push({ id: Date.now(), title, xpNeeded });
+        }
+
+        saveData();
+        closeModal('reward-modal');
+    }
+
+    function deleteCurrentReward() {
+        if (editingRewardId && confirm('¿Deseas eliminar esta recompensa?')) {
+            rewards = rewards.filter(r => r.id !== editingRewardId);
+            saveData();
+            closeModal('reward-modal');
+        }
+    }
+
+    // RUTINAS KARATE
+    function openRoutineModal() {
+        const checkboxes = document.querySelectorAll('#karate-days-group input');
+        checkboxes.forEach(cb => {
+            cb.checked = karateDays.includes(parseInt(cb.value));
+        });
+        document.getElementById('routine-modal').style.display = 'flex';
+    }
+
+    function saveKarateDays() {
+        const checkboxes = document.querySelectorAll('#karate-days-group input:checked');
+        karateDays = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        saveData();
+        closeModal('routine-modal');
+    }
+
+    function filterCategory(cat, btn) {
+        currentCategory = cat;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    // INICIALIZAR LECTURA DE BASE DE DATOS
+    loadData();
+</script>
+
+</body>
+</html>
